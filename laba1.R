@@ -58,6 +58,16 @@ ggplot(student_data, aes(x = lunch)) +
   geom_bar(fill = "brown", color = "black") +
   labs(title = "Ланч", x = "Тип ланча", y = "Частота")
 
+# Гистограмма баллов по математике
+ggplot(student_data, aes(x = math_score)) + 
+  geom_histogram(fill = "aquamarine", color="black") +
+  labs(title = "Оценки по математике", x = "Баллы", y = "Частота")
+
+# Гистограмма пола по количеству(категориальная переменная)
+ggplot(student_data, aes(x = gender)) + 
+  geom_bar(fill = "brown", color = "black") +
+  labs(title = "Гендер", x = "Тип гендера", y = "Частота")
+
 # Полигон частот оценок по математике + гендер
 ggplot(student_data, aes(x = math_score, color = gender)) + 
   geom_freqpoly(bins = 15) +
