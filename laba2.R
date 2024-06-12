@@ -1,5 +1,4 @@
 install.packages("ggplot2")
-install.packages("dplyr")
 library(ggplot2)
 
 # Загрузка датасета
@@ -12,81 +11,88 @@ summary(student_data)
 # Просмотр датасета
 head(student_data)
 
-characteristics_calculation = function(meaning){
-  # Среднее
-  average <- sum(meaning) / length(meaning)
-  average_function <- mean(meaning)
-  
-  #Медиана
-  sorted_mean <- sort(meaning)
-  length_sorted <- length(sorted_mean)
-  if (length_sorted %% 2 == 0) {
-    median_mean <- (sorted_mean[length_sorted / 2] + sorted_mean[length_sorted / 2 + 1]) / 2
-  } else {
-    median_mean <- sorted_mean[(length_sorted + 1) / 2]
-  }
-  median_mean_function <- median(meaning)
-  
-  #Мода
-  mode_mean <- as.numeric(names(sort(table(meaning), decreasing = TRUE)[1]))
-  mode_mean_function <-  as.numeric(names(table(meaning))[which.max(table(meaning))])
-  
-  #Дисперсия
-  variance_mean <- sum((meaning - average)^2) / (length(meaning) - 1)
-  variance_mean_function <- var(meaning)
-  
-  #Среднее квадратичное отклонение
-  sigma_math <- sqrt(variance_mean)
-  sigma_math_function <- sd(meaning)
-  
-  print(paste("Среднее:", average, "Среднее через встр.:", average_function))
-  print(paste("Медиана:", median_mean, "Медиана через встр.:", median_mean_function))
-  print(paste("Мода:", mode_mean, "Мода через встр.:", mode_mean_function))
-  print(paste("Дисперсия:", variance_mean, "Дисперсия через встр.:", variance_mean_function))
-  print(paste("СКО:", sigma_math, "СКО через встр.:", sigma_math_function))
-}
+# Гипотеза: Среднее значение math_score равняется 68
+hypothetical_mean <- 68
 
-# Гистограмма оценок по математике + гендер
-ggplot(student_data, aes(x = math_score, fill = gender)) + 
-  geom_histogram(bins = 15, position="dodge", color = "black") +
-  labs(title = "Оценки по математике + гендер", x = "Баллы", y = "Частота") +
-  scale_fill_manual(values = c("male" = "darkblue", "female" = "pink"))
+#Уровень значимости
+alpha <- 0.05
 
+# Стандартное отклонение
+std <- sd(student_data$math_score, na.rm = TRUE)
+# Размер выборки
+n <- length(student_data$math_score)
+# Среднее значение выборки
+sample_mean <- mean(student_data$math_score, na.rm = TRUE)
 
-# Гистограмма ланча по количеству(категориальная переменная)
-ggplot(student_data, aes(x = lunch)) + 
-  geom_bar(fill = "brown", color = "black") +
-  labs(title = "Ланч", x = "Тип ланча", y = "Частота")
+# Критическое значение t-распределения
+# Используем критическое значение, чтобы узнать область, в которой нулевая гипотеза будет отвергнута
+t_critical <- qt(1 - alpha/2, df = n - 1)
 
-# Гистограмма баллов по математике
-ggplot(student_data, aes(x = math_score)) + 
-  geom_histogram(fill = "aquamarine", color="black") +
-  labs(title = "Оценки по математике", x = "Баллы", y = "Частота")
+# Границы доверительного интервала для t-распределения Стьюдента
+lower_bound_t <- sample_mean - t_critical * std / sqrt(n)
+upper_bound_t <- sample_mean + t_critical * std / sqrt(n)
 
-# Гистограмма пола по количеству(категориальная переменная)
-ggplot(student_data, aes(x = gender)) + 
-  geom_bar(fill = "brown", color = "black") +
-  labs(title = "Гендер", x = "Тип гендера", y = "Частота")
+# Вывод для t-распределения Стьюдента
+cat("Границы доверительного интервала для t-распределения Стьюдента: [", lower_bound_t, ":", upper_bound_t, "]\n", sep = "")
+cat(if (lower_bound_t <= hypothetical_mean && hypothetical_mean <= upper_bound_t) 
+  "С 95% вероятностью среднее значение генеральной совокупности находится в интервале [lower_bound_t:upper_bound_t], гипотеза верна\n" 
+  else 
+    "Гипотеза неверна\n"
+)
 
-# Полигон частот оценок по математике + гендер
-ggplot(student_data, aes(x = math_score, color = gender)) + 
-  geom_freqpoly(bins = 15) +
-  labs(title = "Полигоны частот оценок по математике + гендер", x = "Баллы", y = "Частота") +
-  scale_fill_manual(values = c("male" = "darkblue", "female" = "pink"))
+# Нахождение p-value для t-распределения Стьюдента
+# pt - кумулятивное распределение t-распределения CDF
+# lower.tail = false берем, потому что нам нужна сумма правых и левых хвостов для двустороннего теста
+t_stat <- (sample_mean - hypothetical_mean) / (std / sqrt(n))
+p_value_t <- 2 * pt(abs(t_stat), df = n - 1, lower.tail = FALSE)
+cat("P-value для t-распределения Стьюдента:", p_value_t, "\n")
+cat(if (p_value_t >= alpha) "Гипотеза не может быть отклонена\n" else "Можно отклонить гипотезу\n")
 
-# Очистка данных от выбросов
-Q1 <- quantile(student_data$math_score, 0.25)
-Q3 <- quantile(student_data$math_score, 0.75)
-IQR <- IQR(student_data$math_score)
+# Дополнительный анализ для нормального распределения
+# Используем критическое значение, чтобы узнать область, в которой нулевая гипотеза будет отвергнута
+z_critical <- qnorm(1 - alpha/2)
 
-emissions_student_data <- subset(student_data, student_data$math_score > (Q1 - 1.5 * IQR) & student_data$math_score < (Q3 + 1.5 * IQR))
+# Границы доверительного интервала для нормального распределения
+lower_bound_norm <- sample_mean - z_critical * std / sqrt(n)
+upper_bound_norm <- sample_mean + z_critical * std / sqrt(n)
 
-# Гистограмма оценок по математике + гендер без выбросов
-ggplot(emissions_student_data, aes(x = math_score, fill = gender)) + 
-  geom_histogram(bins = 15, position="dodge", color = "black") +
-  labs(title = "Оценки по математике + гендер без выбросов", x = "Баллы", y = "Частота") +
-  scale_fill_manual(values = c("male" = "darkblue", "female" = "pink"))
+# Вывод для нормального распределения
+cat("Границы доверительного интервала для нормального распределения: [", lower_bound_norm, ":", upper_bound_norm, "]\n", sep = "")
+cat(if (lower_bound_norm <= hypothetical_mean && hypothetical_mean <= upper_bound_norm) 
+  "С 95% вероятностью среднее значение генеральной совокупности находится в интервале [lower_bound_norm:upper_bound_norm], гипотеза верна\n" 
+  else 
+    "Гипотеза неверна\n"
+)
 
-characteristics_calculation(student_data$math_score)
+# Нахождение p-value для нормального распределения
+# lower.tail = false берем, потому что нам нужна сумма правых и левых хвостов для двустороннего теста
+z_stat <- (sample_mean - hypothetical_mean) / (std / sqrt(n))
+p_value_norm <- 2 * pnorm(abs(z_stat), lower.tail = FALSE)
+cat("P-value для нормального распределения:", p_value_norm, "\n")
+cat(if (p_value_norm >= alpha) "Гипотеза не может быть отклонена\n" else "Можно отклонить гипотезу\n")
 
-  
+# Дополнительный анализ для распределения хи-квадрат
+
+# Критическое значение для хи-квадрат распределения
+# Используем критическое значение, чтобы узнать область, в которой нулевая гипотеза будет отвергнута
+chi_critical <- qchisq(1 - alpha, df = n - 1)
+
+# Доверительный интервал для хи-квадрат
+lower_bound_chi <- sample_mean - chi_critical * std / sqrt(n)
+upper_bound_chi <- sample_mean + chi_critical * std / sqrt(n)
+
+# Вывод для хи-квадрат
+cat("Границы доверительного интервала для хи-квадрат распределения: [", lower_bound_chi, ":", upper_bound_chi, "]\n", sep = "")
+cat(if (lower_bound_chi <= hypothetical_mean && hypothetical_mean <= upper_bound_chi) 
+  "С 95% вероятностью среднее значение генеральной совокупности находится в интервале [lower_bound_chi:upper_bound_chi], гипотеза верна\n" 
+  else 
+    "Гипотеза неверна\n"
+)
+
+# Нахождение p-value для хи-квадрат распределения
+# lower.tail = false берем, потому что нам нужна сумма правых и левых хвостов для двустороннего теста
+chi_stat <- (sample_mean - hypothetical_mean) / (std / sqrt(n))
+p_value_chi <- 2 * pchisq(abs(chi_stat), df = n - 1, lower.tail = FALSE)
+cat("P-value для хи-квадрат распределения:", p_value_chi, "\n")
+cat(if (p_value_chi >= alpha) "Гипотеза не может быть отклонена\n" else "Можно отклонить гипотезу\n")
+
